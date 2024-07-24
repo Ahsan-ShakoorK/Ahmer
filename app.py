@@ -6,8 +6,6 @@ import os
 import csv
 import time
 from datetime import datetime
-from gtts import gTTS
-import playsound
 from sklearn.neighbors import KNeighborsClassifier
 
 # Function to add faces to the dataset
@@ -129,9 +127,6 @@ def take_attendance():
 
         k = cv2.waitKey(1)
         if k == ord('o'):
-            tts = gTTS(text="Attendance Taken..", lang='en')
-            tts.save("attendance.mp3")
-            playsound.playsound("attendance.mp3")
             time.sleep(5)
 
             # Check if attendance CSV file exists
