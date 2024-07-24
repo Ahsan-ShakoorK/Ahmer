@@ -10,39 +10,31 @@ from sklearn.neighbors import KNeighborsClassifier
 
 # Function to add faces to the dataset
 def add_faces(name):
-    video = cv2.VideoCapture(0)
-    facedetect = cv2.CascadeClassifier('data/haarcascade_frontalface_default.xml')
-
-    if not video.isOpened():
-        st.error("Error: Could not open video source.")
-        return
-
     faces_data = []
     i = 0
 
-    placeholder = st.empty()
+    st.write("Please position your face in front of the camera and press 'Capture' to start.")
 
     while len(faces_data) < 100:
-        ret, frame = video.read()
-        if not ret or frame is None:
-            st.error("Error: Failed to grab frame.")
-            break
+        img_file = st.camera_input("Capture")
+        if img_file is not None:
+            frame = np.array(bytearray(img_file.read()), dtype=np.uint8)
+            frame = cv2.imdecode(frame, 1)
 
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        faces = facedetect.detectMultiScale(gray, 1.3, 5)
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            facedetect = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+            faces = facedetect.detectMultiScale(gray, 1.3, 5)
 
-        for (x, y, w, h) in faces:
-            crop_img = frame[y:y+h, x:x+w, :]
-            resized_img = cv2.resize(crop_img, (50, 50))
-            if len(faces_data) <= 100 and i % 10 == 0:
-                faces_data.append(resized_img)
-            i += 1
-            cv2.putText(frame, str(len(faces_data)), (50, 50), cv2.FONT_HERSHEY_COMPLEX, 1, (50, 50, 255), 1)
-            cv2.rectangle(frame, (x, y), (x+w, y+h), (50, 50, 255), 1)
+            for (x, y, w, h) in faces:
+                crop_img = frame[y:y+h, x:x+w, :]
+                resized_img = cv2.resize(crop_img, (50, 50))
+                if len(faces_data) <= 100 and i % 10 == 0:
+                    faces_data.append(resized_img)
+                i += 1
+                cv2.putText(frame, str(len(faces_data)), (50, 50), cv2.FONT_HERSHEY_COMPLEX, 1, (50, 50, 255), 1)
+                cv2.rectangle(frame, (x, y), (x+w, y+h), (50, 50, 255), 1)
 
-        placeholder.image(frame, channels="BGR", use_column_width=True)
-
-    video.release()
+            st.image(frame, channels="BGR")
 
     faces_data = np.asarray(faces_data)
     faces_data = faces_data.reshape(100, -1)
@@ -73,76 +65,57 @@ def add_faces(name):
 
 # Function to take attendance
 def take_attendance():
-    video = cv2.VideoCapture(0)
-    facedetect = cv2.CascadeClassifier('data/haarcascade_frontalface_default.xml')
+    faces_data = []
+    st.write("Please position your face in front of the camera and press 'Capture' to start.")
 
-    # Load data from pickle files
-    with open('data/names.pkl', 'rb') as w:
-        LABELS = pickle.load(w)
-    with open('data/faces_data.pkl', 'rb') as f:
-        FACES = pickle.load(f)
-
-    # Initialize KNN classifier
-    knn = KNeighborsClassifier(n_neighbors=5)
-    knn.fit(FACES, LABELS)
-
-    # Initialize background image
-    imgBackground = cv2.imread("background.png")
-
-    # CSV column names
-    COL_NAMES = ['NAME', 'TIME']
-
-    placeholder = st.empty()
-
-    while True:
-        ret, frame = video.read()
-        if not ret or frame is None:
-            st.error("Error: Failed to grab frame.")
-            break
+    img_file = st.camera_input("Capture")
+    if img_file is not None:
+        frame = np.array(bytearray(img_file.read()), dtype=np.uint8)
+        frame = cv2.imdecode(frame, 1)
 
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        facedetect = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
         faces = facedetect.detectMultiScale(gray, 1.3, 5)
 
         for (x, y, w, h) in faces:
             crop_img = frame[y:y+h, x:x+w, :]
             resized_img = cv2.resize(crop_img, (50, 50)).flatten().reshape(1, -1)
-            output = knn.predict(resized_img)
-
-            ts = time.time()
-            date = datetime.fromtimestamp(ts).strftime("%d-%m-%Y")
-            timestamp = datetime.fromtimestamp(ts).strftime("%H:%M:%S")
-
-            # Prepare attendance record
-            attendance = [str(output[0]), str(timestamp)]
-
-            # Draw rectangles and text on the frame
+            faces_data.append(resized_img)
             cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 255), 1)
             cv2.rectangle(frame, (x, y), (x+w, y+h), (50, 50, 255), 2)
             cv2.rectangle(frame, (x, y-40), (x+w, y), (50, 50, 255), -1)
-            cv2.putText(frame, str(output[0]), (x, y-15), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 1)
+            cv2.putText(frame, "Face Detected", (x, y-15), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 1)
             cv2.rectangle(frame, (x, y), (x+w, y+h), (50, 50, 255), 1)
 
-        placeholder.image(frame, channels="BGR", use_column_width=True)
+        st.image(frame, channels="BGR")
 
-        k = cv2.waitKey(1)
-        if k == ord('o'):
-            time.sleep(5)
+    if faces_data:
+        with open('data/names.pkl', 'rb') as w:
+            LABELS = pickle.load(w)
+        with open('data/faces_data.pkl', 'rb') as f:
+            FACES = pickle.load(f)
 
-            # Check if attendance CSV file exists
-            attendance_file = "Attendance/osama.csv"
-            exist = os.path.isfile(attendance_file)
+        knn = KNeighborsClassifier(n_neighbors=5)
+        knn.fit(FACES, LABELS)
 
-            # Write attendance record to CSV
-            with open(attendance_file, mode='a', newline='') as csvfile:
-                writer = csv.writer(csvfile)
-                if not exist:
-                    writer.writerow(COL_NAMES)
-                writer.writerow(attendance)
+        output = knn.predict(faces_data[0])
 
-        if k == ord('q'):
-            break
+        ts = time.time()
+        date = datetime.fromtimestamp(ts).strftime("%d-%m-%Y")
+        timestamp = datetime.fromtimestamp(ts).strftime("%H:%M:%S")
 
-    video.release()
+        attendance = [str(output[0]), str(timestamp)]
+
+        st.write(f"Attendance taken for {output[0]} at {timestamp}")
+
+        attendance_file = "Attendance/osama.csv"
+        exist = os.path.isfile(attendance_file)
+
+        with open(attendance_file, mode='a', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            if not exist:
+                writer.writerow(['NAME', 'TIME'])
+            writer.writerow(attendance)
 
 st.title("Face Recognition Attendance System")
 
