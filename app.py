@@ -8,13 +8,23 @@ import time
 from datetime import datetime
 from sklearn.neighbors import KNeighborsClassifier
 
+# Directory paths
+DATA_DIR = 'data'
+ATTENDANCE_DIR = 'Attendance'
+
+# Ensure directories exist
+if not os.path.exists(DATA_DIR):
+    os.makedirs(DATA_DIR)
+if not os.path.exists(ATTENDANCE_DIR):
+    os.makedirs(ATTENDANCE_DIR)
+
 # Function to add faces to the dataset
 def add_faces(name):
     faces_data = []
     i = 0
 
     st.write("Please position your face in front of the camera and press 'Capture' to start.")
-
+    
     while len(faces_data) < 100:
         img_file = st.camera_input("Capture", key=f"capture_add_{i}")
         if img_file is not None:
@@ -39,33 +49,32 @@ def add_faces(name):
     faces_data = np.asarray(faces_data)
     faces_data = faces_data.reshape(100, -1)
 
-    if not os.path.exists('data'):
-        os.makedirs('data')
+    names_path = os.path.join(DATA_DIR, 'names.pkl')
+    faces_data_path = os.path.join(DATA_DIR, 'faces_data.pkl')
 
-    if 'names.pkl' not in os.listdir('data/'):
+    if not os.path.exists(names_path):
         names = [name] * 100
-        with open('data/names.pkl', 'wb') as f:
+        with open(names_path, 'wb') as f:
             pickle.dump(names, f)
     else:
-        with open('data/names.pkl', 'rb') as f:
+        with open(names_path, 'rb') as f:
             names = pickle.load(f)
         names += [name] * 100
-        with open('data/names.pkl', 'wb') as f:
+        with open(names_path, 'wb') as f:
             pickle.dump(names, f)
 
-    if 'faces_data.pkl' not in os.listdir('data/'):
-        with open('data/faces_data.pkl', 'wb') as f:
+    if not os.path.exists(faces_data_path):
+        with open(faces_data_path, 'wb') as f:
             pickle.dump(faces_data, f)
     else:
-        with open('data/faces_data.pkl', 'rb') as f:
+        with open(faces_data_path, 'rb') as f:
             faces = pickle.load(f)
         faces = np.append(faces, faces_data, axis=0)
-        with open('data/faces_data.pkl', 'wb') as f:
+        with open(faces_data_path, 'wb') as f:
             pickle.dump(faces, f)
 
 # Function to take attendance
 def take_attendance():
-    faces_data = []
     st.write("Please position your face in front of the camera and press 'Capture' to start.")
 
     img_file = st.camera_input("Capture", key="capture_attendance")
@@ -77,28 +86,32 @@ def take_attendance():
         facedetect = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
         faces = facedetect.detectMultiScale(gray, 1.3, 5)
 
+        if len(faces) == 0:
+            st.write("No face detected. Please try again.")
+            return
+
         for (x, y, w, h) in faces:
             crop_img = frame[y:y+h, x:x+w, :]
             resized_img = cv2.resize(crop_img, (50, 50)).flatten().reshape(1, -1)
-            faces_data.append(resized_img)
             cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 255), 1)
             cv2.rectangle(frame, (x, y), (x+w, y+h), (50, 50, 255), 2)
             cv2.rectangle(frame, (x, y-40), (x+w, y), (50, 50, 255), -1)
             cv2.putText(frame, "Face Detected", (x, y-15), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 1)
-            cv2.rectangle(frame, (x, y), (x+w, y+h), (50, 50, 255), 1)
 
         st.image(frame, channels="BGR")
 
-    if faces_data:
-        with open('data/names.pkl', 'rb') as w:
+        names_path = os.path.join(DATA_DIR, 'names.pkl')
+        faces_data_path = os.path.join(DATA_DIR, 'faces_data.pkl')
+
+        with open(names_path, 'rb') as w:
             LABELS = pickle.load(w)
-        with open('data/faces_data.pkl', 'rb') as f:
+        with open(faces_data_path, 'rb') as f:
             FACES = pickle.load(f)
 
         knn = KNeighborsClassifier(n_neighbors=5)
         knn.fit(FACES, LABELS)
 
-        output = knn.predict(faces_data[0])
+        output = knn.predict(resized_img)
 
         ts = time.time()
         date = datetime.fromtimestamp(ts).strftime("%d-%m-%Y")
@@ -108,7 +121,7 @@ def take_attendance():
 
         st.write(f"Attendance taken for {output[0]} at {timestamp}")
 
-        attendance_file = "Attendance/osama.csv"
+        attendance_file = os.path.join(ATTENDANCE_DIR, "attendance.csv")
         exist = os.path.isfile(attendance_file)
 
         with open(attendance_file, mode='a', newline='') as csvfile:
