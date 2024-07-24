@@ -16,7 +16,7 @@ def add_faces(name):
     st.write("Please position your face in front of the camera and press 'Capture' to start.")
 
     while len(faces_data) < 100:
-        img_file = st.camera_input("Capture")
+        img_file = st.camera_input("Capture", key=f"capture_add_{i}")
         if img_file is not None:
             frame = np.array(bytearray(img_file.read()), dtype=np.uint8)
             frame = cv2.imdecode(frame, 1)
@@ -68,7 +68,7 @@ def take_attendance():
     faces_data = []
     st.write("Please position your face in front of the camera and press 'Capture' to start.")
 
-    img_file = st.camera_input("Capture")
+    img_file = st.camera_input("Capture", key="capture_attendance")
     if img_file is not None:
         frame = np.array(bytearray(img_file.read()), dtype=np.uint8)
         frame = cv2.imdecode(frame, 1)
