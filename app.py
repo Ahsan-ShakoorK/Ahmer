@@ -6,7 +6,8 @@ import os
 import csv
 import time
 from datetime import datetime
-import pyttsx3
+from gtts import gTTS
+import playsound
 from sklearn.neighbors import KNeighborsClassifier
 
 # Function to add faces to the dataset
@@ -75,8 +76,6 @@ def add_faces(name):
 
 # Function to take attendance
 def take_attendance():
-    engine = pyttsx3.init()
-
     video = cv2.VideoCapture(0)
     facedetect = cv2.CascadeClassifier('data/haarcascade_frontalface_default.xml')
 
@@ -130,12 +129,13 @@ def take_attendance():
 
         k = cv2.waitKey(1)
         if k == ord('o'):
-            engine.say("Attendance Taken..")
-            engine.runAndWait()
+            tts = gTTS(text="Attendance Taken..", lang='en')
+            tts.save("attendance.mp3")
+            playsound.playsound("attendance.mp3")
             time.sleep(5)
 
             # Check if attendance CSV file exists
-            attendance_file = "Attendance\\osama.csv"
+            attendance_file = "Attendance/osama.csv"
             exist = os.path.isfile(attendance_file)
 
             # Write attendance record to CSV
