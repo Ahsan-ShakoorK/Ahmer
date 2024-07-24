@@ -11,12 +11,11 @@ from sklearn.neighbors import KNeighborsClassifier
 # Function to add faces to the dataset
 def add_faces(name):
     video = cv2.VideoCapture(0)
-    facedetect = cv2.CascadeClassifier('data/haarcascade_frontalface_default.xml')
-
     if not video.isOpened():
-        st.error("Error: Could not open video source.")
+        st.error("Error: Could not open video source. Try changing the index (e.g., 0, 1, 2).")
         return
 
+    facedetect = cv2.CascadeClassifier('data/haarcascade_frontalface_default.xml')
     faces_data = []
     i = 0
 
@@ -43,7 +42,10 @@ def add_faces(name):
         placeholder.image(frame, channels="BGR", use_column_width=True)
 
     video.release()
-    cv2.destroyAllWindows()
+    try:
+        cv2.destroyAllWindows()
+    except cv2.error:
+        pass
 
     faces_data = np.asarray(faces_data)
     faces_data = faces_data.reshape(100, -1)
@@ -75,6 +77,10 @@ def add_faces(name):
 # Function to take attendance
 def take_attendance():
     video = cv2.VideoCapture(0)
+    if not video.isOpened():
+        st.error("Error: Could not open video source. Try changing the index (e.g., 0, 1, 2).")
+        return
+
     facedetect = cv2.CascadeClassifier('data/haarcascade_frontalface_default.xml')
 
     # Load data from pickle files
@@ -141,7 +147,10 @@ def take_attendance():
 
     # Release video capture and close all windows
     video.release()
-    cv2.destroyAllWindows()
+    try:
+        cv2.destroyAllWindows()
+    except cv2.error:
+        pass
 
 st.title("Face Recognition Attendance System")
 
