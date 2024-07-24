@@ -18,6 +18,14 @@ if not os.path.exists(DATA_DIR):
 if not os.path.exists(ATTENDANCE_DIR):
     os.makedirs(ATTENDANCE_DIR)
 
+# Initialize session state variables
+if 'face_count' not in st.session_state:
+    st.session_state.face_count = 0
+if 'capture_key_add' not in st.session_state:
+    st.session_state.capture_key_add = 0
+if 'capture_key_attendance' not in st.session_state:
+    st.session_state.capture_key_attendance = 0
+
 # Function to add faces to the dataset
 def add_faces(name):
     faces_data = []
@@ -26,8 +34,10 @@ def add_faces(name):
     st.write("Please position your face in front of the camera and press 'Capture' to start.")
     
     while len(faces_data) < 100:
-        img_file = st.camera_input("Capture", key=f"capture_add_{i}")
+        key = f"capture_add_{st.session_state.capture_key_add}"
+        img_file = st.camera_input("Capture", key=key)
         if img_file is not None:
+            st.session_state.capture_key_add += 1
             frame = np.array(bytearray(img_file.read()), dtype=np.uint8)
             frame = cv2.imdecode(frame, 1)
 
@@ -77,8 +87,10 @@ def add_faces(name):
 def take_attendance():
     st.write("Please position your face in front of the camera and press 'Capture' to start.")
 
-    img_file = st.camera_input("Capture", key="capture_attendance")
+    key = f"capture_attendance_{st.session_state.capture_key_attendance}"
+    img_file = st.camera_input("Capture", key=key)
     if img_file is not None:
+        st.session_state.capture_key_attendance += 1
         frame = np.array(bytearray(img_file.read()), dtype=np.uint8)
         frame = cv2.imdecode(frame, 1)
 
