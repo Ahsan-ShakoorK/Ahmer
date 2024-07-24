@@ -10,45 +10,57 @@ from sklearn.neighbors import KNeighborsClassifier
 
 # Function to add faces to the dataset
 def add_faces(name):
-    # Mocking camera input with a sample image for the deployment environment
-    image_path = 'sample_face.jpg'  # Path to your sample image
-    frame = cv2.imread(image_path)
-
-    if frame is None:
-        st.error("Error: Could not read sample image.")
+    video = cv2.VideoCapture(0)
+    if not video.isOpened():
+        st.error("Error: Could not open video source. Try changing the index (e.g., 0, 1, 2).")
         return
 
     facedetect = cv2.CascadeClassifier('data/haarcascade_frontalface_default.xml')
     faces_data = []
     i = 0
 
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    faces = facedetect.detectMultiScale(gray, 1.3, 5)
+    placeholder = st.empty()
 
-    for (x, y, w, h) in faces:
-        crop_img = frame[y:y+h, x:x+w, :]
-        resized_img = cv2.resize(crop_img, (50, 50))
-        faces_data.append(resized_img)
-        i += 1
-        cv2.putText(frame, str(len(faces_data)), (50, 50), cv2.FONT_HERSHEY_COMPLEX, 1, (50, 50, 255), 1)
-        cv2.rectangle(frame, (x, y), (x+w, y+h), (50, 50, 255), 1)
+    while len(faces_data) < 100:
+        ret, frame = video.read()
+        if not ret or frame is None:
+            st.error("Error: Failed to grab frame.")
+            break
 
-    st.image(frame, channels="BGR", use_column_width=True)
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        faces = facedetect.detectMultiScale(gray, 1.3, 5)
+
+        for (x, y, w, h) in faces:
+            crop_img = frame[y:y+h, x:x+w, :]
+            resized_img = cv2.resize(crop_img, (50, 50))
+            if len(faces_data) <= 100 and i % 10 == 0:
+                faces_data.append(resized_img)
+            i += 1
+            cv2.putText(frame, str(len(faces_data)), (50, 50), cv2.FONT_HERSHEY_COMPLEX, 1, (50, 50, 255), 1)
+            cv2.rectangle(frame, (x, y), (x+w, y+h), (50, 50, 255), 1)
+
+        placeholder.image(frame, channels="BGR", use_column_width=True)
+
+    video.release()
+    try:
+        cv2.destroyAllWindows()
+    except cv2.error:
+        pass
 
     faces_data = np.asarray(faces_data)
-    faces_data = faces_data.reshape(len(faces_data), -1)
+    faces_data = faces_data.reshape(100, -1)
 
     if not os.path.exists('data'):
         os.makedirs('data')
 
     if 'names.pkl' not in os.listdir('data/'):
-        names = [name] * len(faces_data)
+        names = [name] * 100
         with open('data/names.pkl', 'wb') as f:
             pickle.dump(names, f)
     else:
         with open('data/names.pkl', 'rb') as f:
             names = pickle.load(f)
-        names += [name] * len(faces_data)
+        names += [name] * 100
         with open('data/names.pkl', 'wb') as f:
             pickle.dump(names, f)
 
@@ -64,12 +76,9 @@ def add_faces(name):
 
 # Function to take attendance
 def take_attendance():
-    # Mocking camera input with a sample image for the deployment environment
-    image_path = 'sample_face.jpg'  # Path to your sample image
-    frame = cv2.imread(image_path)
-
-    if frame is None:
-        st.error("Error: Could not read sample image.")
+    video = cv2.VideoCapture(0)
+    if not video.isOpened():
+        st.error("Error: Could not open video source. Try changing the index (e.g., 0, 1, 2).")
         return
 
     facedetect = cv2.CascadeClassifier('data/haarcascade_frontalface_default.xml')
@@ -87,40 +96,62 @@ def take_attendance():
     # CSV column names
     COL_NAMES = ['NAME', 'TIME']
 
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    faces = facedetect.detectMultiScale(gray, 1.3, 5)
+    placeholder = st.empty()
 
-    for (x, y, w, h) in faces:
-        crop_img = frame[y:y+h, x:x+w, :]
-        resized_img = cv2.resize(crop_img, (50, 50)).flatten().reshape(1, -1)
-        output = knn.predict(resized_img)
+    while True:
+        ret, frame = video.read()
+        if not ret or frame is None:
+            st.error("Error: Failed to grab frame.")
+            break
 
-        ts = time.time()
-        timestamp = datetime.fromtimestamp(ts).strftime("%H:%M:%S")
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        faces = facedetect.detectMultiScale(gray, 1.3, 5)
 
-        # Prepare attendance record
-        attendance = [str(output[0]), str(timestamp)]
+        for (x, y, w, h) in faces:
+            crop_img = frame[y:y+h, x:x+w, :]
+            resized_img = cv2.resize(crop_img, (50, 50)).flatten().reshape(1, -1)
+            output = knn.predict(resized_img)
 
-        # Draw rectangles and text on the frame
-        cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 255), 1)
-        cv2.rectangle(frame, (x, y), (x+w, y+h), (50, 50, 255), 2)
-        cv2.rectangle(frame, (x, y-40), (x+w, y), (50, 50, 255), -1)
-        cv2.putText(frame, str(output[0]), (x, y-15), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 1)
-        cv2.rectangle(frame, (x, y), (x+w, y+h), (50, 50, 255), 1)
+            ts = time.time()
+            timestamp = datetime.fromtimestamp(ts).strftime("%H:%M:%S")
 
-    st.image(frame, channels="BGR", use_column_width=True)
+            # Prepare attendance record
+            attendance = [str(output[0]), str(timestamp)]
 
-    # Save attendance to CSV
-    attendance_file = "Attendance/attendance.csv"
-    exist = os.path.isfile(attendance_file)
+            # Draw rectangles and text on the frame
+            cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 255), 1)
+            cv2.rectangle(frame, (x, y), (x+w, y+h), (50, 50, 255), 2)
+            cv2.rectangle(frame, (x, y-40), (x+w, y), (50, 50, 255), -1)
+            cv2.putText(frame, str(output[0]), (x, y-15), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 1)
+            cv2.rectangle(frame, (x, y), (x+w, y+h), (50, 50, 255), 1)
 
-    with open(attendance_file, mode='a', newline='') as csvfile:
-        writer = csv.writer(csvfile)
-        if not exist:
-            writer.writerow(COL_NAMES)
-        writer.writerow(attendance)
+        placeholder.image(frame, channels="BGR", use_column_width=True)
 
-# Streamlit UI
+        k = cv2.waitKey(1)
+        if k == ord('o'):
+            time.sleep(5)
+
+            # Check if attendance CSV file exists
+            attendance_file = "Attendance\\attendance.csv"
+            exist = os.path.isfile(attendance_file)
+
+            # Write attendance record to CSV
+            with open(attendance_file, mode='a', newline='') as csvfile:
+                writer = csv.writer(csvfile)
+                if not exist:
+                    writer.writerow(COL_NAMES)
+                writer.writerow(attendance)
+
+        if k == ord('q'):
+            break
+
+    # Release video capture and close all windows
+    video.release()
+    try:
+        cv2.destroyAllWindows()
+    except cv2.error:
+        pass
+
 st.title("Face Recognition Attendance System")
 
 # Tab for adding faces
