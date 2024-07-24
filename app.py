@@ -43,7 +43,6 @@ def add_faces(name):
         placeholder.image(frame, channels="BGR", use_column_width=True)
 
     video.release()
-    cv2.destroyAllWindows()
 
     faces_data = np.asarray(faces_data)
     faces_data = faces_data.reshape(100, -1)
@@ -143,9 +142,7 @@ def take_attendance():
         if k == ord('q'):
             break
 
-    # Release video capture and close all windows
     video.release()
-    cv2.destroyAllWindows()
 
 st.title("Face Recognition Attendance System")
 
