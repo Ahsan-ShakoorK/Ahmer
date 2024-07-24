@@ -6,7 +6,7 @@ import os
 import csv
 import time
 from datetime import datetime
-from win32com.client import Dispatch
+import pyttsx3
 from sklearn.neighbors import KNeighborsClassifier
 
 # Function to add faces to the dataset
@@ -75,7 +75,7 @@ def add_faces(name):
 
 # Function to take attendance
 def take_attendance():
-    speak = Dispatch(("SAPI.SpVoice"))
+    engine = pyttsx3.init()
 
     video = cv2.VideoCapture(0)
     facedetect = cv2.CascadeClassifier('data/haarcascade_frontalface_default.xml')
@@ -130,7 +130,8 @@ def take_attendance():
 
         k = cv2.waitKey(1)
         if k == ord('o'):
-            speak.Speak("Attendance Taken..")
+            engine.say("Attendance Taken..")
+            engine.runAndWait()
             time.sleep(5)
 
             # Check if attendance CSV file exists
